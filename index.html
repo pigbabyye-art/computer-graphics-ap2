@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b151a">
+<meta name="description" content="探索太阳、地球与月球的三维层级运动，比较透视与正交投影。">
+<title>轨道之间 · 三维太阳系</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='%23cce989'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar"><a class="brand" href="./" aria-label="轨道之间首页"><span class="mark" aria-hidden="true">✺</span><span>ORBITAL <small>STUDIES / 02</small></span></a><span class="top-note">INTERACTIVE EXPERIENCE <span>·</span> 02</span></header>
+  <main>
+    <section class="intro"><div><p class="eyebrow"><span class="dot"></span> 一场关于运动与空间的探索</p><h1>轨道之间<span>。</span></h1><p class="subtitle">从太阳到月球，亲手探索天体运动与三维空间的关系。</p></div><div class="intro-index"><span>EXPLORE THE</span><strong>SOLAR SYSTEM <i>↗</i></strong></div></section>
+    <div class="workspace">
+      <section class="viewport" aria-label="三维太阳系场景">
+        <canvas id="scene" tabindex="0" aria-label="太阳系三维画面：左键拖动旋转，右键或 Shift 拖动平移，滚轮在指针位置缩放，双击天体聚焦；方向键旋转，Shift 加方向键平移，加减键缩放"></canvas>
+        <div class="zoom-controls" role="group" aria-label="缩放场景"><button id="zoom-in" type="button" aria-label="放大场景">＋</button><button id="zoom-out" type="button" aria-label="缩小场景">−</button></div>
+        <div class="canvas-top"><span><b class="live-dot"></b> SOLAR SYSTEM <em> / </em> 实时场景</span><span id="projection-label">透视投影</span></div>
+        <div id="error" class="error" role="alert" hidden></div>
+        <div id="texture-warning" class="texture-warning" role="status" hidden></div>
+        <div class="canvas-bottom"><div><span class="tiny">CAMERA VIEW</span><strong id="camera-status" aria-live="polite">环绕漫游中</strong></div><p>左键旋转 <span>·</span> 右键平移 <span>·</span> 滚轮指点缩放 <span>·</span> 双击聚焦</p></div>
+      </section>
+      <aside class="panel" aria-labelledby="panel-title">
+        <div class="panel-header"><div><p class="eyebrow">MAKE IT YOURS</p><h2 id="panel-title">场景控制</h2><p class="panel-subtitle">调整参数，探索不同的观察方式。</p></div><span class="panel-icon" aria-hidden="true">✳</span></div>
+        <div class="control-group">
+          <div class="control"><div class="control-label"><label for="simulation-speed">模拟时间速度</label><output id="simulation-speed-value" for="simulation-speed">1 秒 = 2 模拟日</output></div><input type="range" id="simulation-speed" min="0" max="10" step="1" value="6" aria-valuetext="每真实秒 2 模拟日" aria-describedby="simulation-speed-hint"><div class="range-ends"><span>暂停</span><span>50 日 / 秒</span></div><p class="simulation-hint" id="simulation-speed-hint">所有天体按同一模拟时间推进；高速时自转可能出现跳帧或视觉倒转。</p></div>
+          <div class="control"><div class="control-label"><label for="tilt">地球轴倾角</label><output id="tilt-value" for="tilt">23.5°</output></div><input type="range" id="tilt" min="0" max="90" step="0.5" value="23.5"><div class="range-ends"><span>0°</span><span>90°</span></div></div>
+          <div class="switch-row"><label for="orbits">显示轨道线</label><input id="orbits" type="checkbox" checked></div>
+        </div>
+        <div class="panel-divider"></div>
+        <div class="view-controls">
+          <div class="view-block"><div class="section-label">场景范围 <span>SCENE</span></div><div class="segmented" role="group" aria-label="场景范围"><button id="focus" class="active" aria-pressed="true">日地月</button><button id="system" aria-pressed="false">全太阳系</button></div></div>
+          <div class="view-block"><div class="section-label">轨道距离 <span>SCALE</span></div><div class="segmented" role="group" aria-label="轨道距离比例"><button id="scale-display" class="active" aria-pressed="true">展示距离</button><button id="scale-true" aria-pressed="false">真实距离比例</button></div></div>
+          <div class="view-block"><div class="section-label">观察方式 <span>PROJECTION</span></div><div class="segmented" role="group" aria-label="投影方式"><button id="perspective" class="active" aria-pressed="true">透视</button><button id="orthographic" aria-pressed="false">正交</button></div></div>
+        </div>
+        <div class="action-group"><button id="roam" class="roam-button">Ⅱ <span>暂停漫游</span><kbd>SPACE</kbd></button><div class="secondary-actions"><button id="reset" class="reset-button">重置场景 ↺</button><button id="record" class="reset-button">录制 10 秒画面 ↓</button></div></div>
+        <p class="hint"><kbd>O</kbd> 切换投影 <span> / </span> <kbd>SPACE</kbd> 暂停或继续漫游<br>触屏：单指旋转，双指平移与缩放</p>
+      </aside>
+    </div>
+    <footer><div><span class="foot-num">✺</span><span>太阳 · 地球 · 月球</span></div><p id="scale-note">为展示压缩行星距离；天体大小和地月距离非真实比例。</p><span>AN INTERACTIVE STUDY</span></footer>
+  </main>
+</div>
+<script src="Common/MV.js"></script><script type="module" src="app.js"></script>
+</body></html>
