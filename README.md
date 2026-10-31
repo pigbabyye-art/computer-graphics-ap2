@@ -4,13 +4,15 @@
 
 ## 运行
 
+公网演示：[https://pigbabyye-art.github.io/computer-graphics-ap2/](https://pigbabyye-art.github.io/computer-graphics-ap2/)
+
 需要支持 WebGL 2.0 的现代浏览器。在项目目录启动静态服务器，无需构建步骤：
 
 ```bash
 python3 -m http.server 8002 --bind 127.0.0.1
 ```
 
-浏览器打开 <http://127.0.0.1:8002/>。服务器终端保持运行；`Ctrl+C` 停止。本机地址仅用于运行和测试，不能作为课程要求的公网 URL。提交时还需提供可公开访问的页面地址和源码 ZIP。
+浏览器打开 <http://127.0.0.1:8002/>。服务器终端保持运行；`Ctrl+C` 停止。本机地址仅用于运行和测试，不能作为课程要求的公网 URL。提交时请同时提供上述公网演示地址和源码 ZIP。
 
 ## 层级变换
 
