@@ -2,7 +2,7 @@ import { SolarScene } from './scene.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('scene');
-const state = { time: 0, simulationSpeed: 2, tilt: 23.5, showOrbits: true, projection: 'perspective', sceneMode: 'focus', orbitScale: 'display', yaw: 0.65, pitch: 0.55, distance: 12, target: [0, 0, 0] };
+const state = { time: 0, simulationSpeed: 2, orbitSpeed: 1, rotationSpeed: 1, tilt: 23.5, showOrbits: true, projection: 'perspective', sceneMode: 'focus', orbitScale: 'display', yaw: 0.65, pitch: 0.55, distance: 12, target: [0, 0, 0] };
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let roaming = !reducedMotion, roamPhase = state.yaw, last = null;
 // Orthographic magnification (distance) is independent of the eye position.
@@ -11,7 +11,7 @@ const ORTHO_EYE_DISTANCE = 700;
 const MAX_DISTANCE = 800;
 const pointers = new Map();
 let lastOrthoAnchor = null;
-let scene, contextLost = false, lostSimulationDays = 0;
+let scene, contextLost = false, lostSimulationDays = 0, lostRotationDays = 0;
 const missingTextures = new Set();
 canvas.addEventListener('textureerror', event => { missingTextures.add(event.detail.name); const warning = $('texture-warning'); warning.hidden = false; warning.textContent = `部分纹理加载失败（${[...missingTextures].join('、')}），当前显示替代颜色。请检查网络或刷新页面。`; });
 try { scene = new SolarScene(canvas); } catch (error) { $('error').hidden = false; $('error').textContent = `无法启动 WebGL 2：${error.message}。请使用支持 WebGL 2 的浏览器。`; throw error; }
@@ -46,6 +46,13 @@ function updateSimulationSpeed() {
   $('simulation-speed').setAttribute('aria-valuetext', rate === 0 ? '模拟时间暂停' : `每真实秒 ${rate} 模拟日`);
 }
 $('simulation-speed').addEventListener('input', updateSimulationSpeed);
+for (const [id, key] of [['orbit-speed', 'orbitSpeed'], ['rotation-speed', 'rotationSpeed']]) {
+  $(id).addEventListener('input', event => {
+    state[key] = Number(event.target.value);
+    $(`${id}-value`).textContent = `${state[key].toFixed(1)}×`;
+    $(id).setAttribute('aria-valuetext', state[key] === 0 ? '暂停' : `${state[key].toFixed(1)} 倍`);
+  });
+}
 $('tilt').addEventListener('input', event => {
   state.tilt = Number(event.target.value);
   $('tilt-value').textContent = `${state.tilt.toFixed(1)}°`;
@@ -78,8 +85,9 @@ $('roam').addEventListener('click', toggleRoam);
 $('reset').addEventListener('click', () => {
   Object.assign(state, {time:0, simulationSpeed:2, tilt:23.5, showOrbits:true, yaw:.65, pitch:.55, distance:12});
   $('simulation-speed').value = '6'; updateSimulationSpeed();
+  for (const id of ['orbit-speed', 'rotation-speed']) { $(id).value = '1'; $(id).dispatchEvent(new Event('input')); }
   $('tilt').value = '23.5'; $('tilt').dispatchEvent(new Event('input'));
-  $('orbits').checked = true; scene.resetTime(); lostSimulationDays = 0; setMode('focus'); setProjection('perspective'); roaming = !reducedMotion; roamPhase = state.yaw; cameraUI();
+  $('orbits').checked = true; scene.resetTime(); lostSimulationDays = 0; lostRotationDays = 0; setMode('focus'); setProjection('perspective'); roaming = !reducedMotion; roamPhase = state.yaw; cameraUI();
 });
 // Screen-plane camera operations. Both projections use the same framing at the target distance.
 function cameraBasis() {
@@ -204,12 +212,14 @@ canvas.addEventListener('webglcontextlost', e => {
   e.preventDefault();
   // Preserve the last visible simulation instant; time is paused until recovery.
   lostSimulationDays = scene.simulationDays;
+  lostRotationDays = scene.rotationDays;
   contextLost = true; $('error').hidden = false; $('error').textContent = '图形上下文暂时中断，正在尝试恢复…';
 });
 canvas.addEventListener('webglcontextrestored', () => {
   try {
     const restoredScene = new SolarScene(canvas);
     restoredScene.simulationDays = lostSimulationDays;
+    restoredScene.rotationDays = lostRotationDays;
     scene = restoredScene; contextLost = false; $('error').hidden = true; last = null;
   } catch (error) { $('error').textContent = '图形恢复失败，请刷新页面：' + error.message; }
 });

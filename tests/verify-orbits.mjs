@@ -12,6 +12,15 @@ const {PLANETS, solveKepler, orbitalPointFromE, planetPosition, makePlanetOrbit,
   moonPosition, moonFrameForAnchor, makeMoonOrbit, SolarScene} = m;
 const near = (a,b,tol=1e-7) => assert.ok(Math.abs(a-b)<tol, `${a} != ${b}`);
 const dist = (a,b) => Math.hypot(...a.map((x,i)=>x-b[i]));
+// Independent multipliers preserve continuity and leave the other phase unchanged.
+assert.deepEqual(m.advanceMotionDays(10, 20, 2, 3, 0, 2), [10, 32]);
+assert.deepEqual(m.advanceMotionDays(10, 20, 2, 3, 2, 0), [22, 20]);
+assert.deepEqual(m.advanceMotionDays(10, 20, 2, 0, 4, 4), [10, 20]);
+assert.deepEqual(m.advanceMotionDays(10, 10, 2, 3, 1, 1), [16, 16]);
+const independentMoon = moonFrameForAnchor(mat4(), 2, 1, 7);
+const ordinaryMoon = moonFrameForAnchor(mat4(), 2, 1, 2);
+for (let i=0; i<3; i++) near(independentMoon[i][3], ordinaryMoon[i][3]);
+assert.notEqual(independentMoon[0][0], ordinaryMoon[0][0]);
 assert.equal(PLANETS.length,8);
 for (const p of PLANETS) for (const mode of ['display','true']) {
   const a=mode==='true' ? 4*p.orbitAU/1.00000261 : p.orbit;

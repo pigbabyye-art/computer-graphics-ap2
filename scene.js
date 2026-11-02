@@ -61,6 +61,11 @@ export function planetPosition(p, days, orbitScale = 'display') {
 export function advanceSimulationDays(days, elapsedSeconds, simulationSpeed) {
   return days + Math.max(0, elapsedSeconds) * Math.max(0, simulationSpeed);
 }
+// Keep two accumulated phases so changing a multiplier never jumps the scene.
+export function advanceMotionDays(orbitDays, rotationDays, dt, speed, orbitMultiplier, rotationMultiplier) {
+  return [advanceSimulationDays(orbitDays, dt, speed * orbitMultiplier),
+    advanceSimulationDays(rotationDays, dt, speed * rotationMultiplier)];
+}
 // Local x-z orbital-plane position relative to Earth, which is one focus.
 // Perigee occurs at simulation day zero; this is an illustrative phase, not an ephemeris.
 export function moonPointFromE(eccentricAnomaly, semimajorAxis = 1) {
@@ -76,9 +81,9 @@ export function moonPosition(days, semimajorAxis) {
 // orbit period, while the nonuniform true anomaly produces optical libration.
 // Local -X points toward Earth at perigee and apogee, and toward the mean
 // orbital direction at intermediate phases. Fixed tilt and apsis are simplified.
-export function moonFrameForAnchor(anchor, days, semimajorAxis) {
+export function moonFrameForAnchor(anchor, days, semimajorAxis, rotationDays = days) {
   return mult(mult(mult(anchor, rotateZ(MOON_INCLINATION_DEG)), translate(...moonPosition(days, semimajorAxis))),
-    rotateY(cycleAngle(days, MOON_ORBIT_DAYS)));
+    rotateY(cycleAngle(rotationDays, MOON_ORBIT_DAYS)));
 }
 const COLORS = { sun: [1, 0.70, 0.2], moon: [0.72, 0.73, 0.75] };
 const VERTEX = `#version 300 es
@@ -320,6 +325,7 @@ export class SolarScene {
     for (const n of ['sun', 'moon', 'earth_clouds', ...PLANETS.map(p => p.name)]) this.loadTexture(n);
     this.previousTime = null;
     this.simulationDays = 0;
+    this.rotationDays = 0;
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.012, 0.02, 0.055, 1);
     gl.uniform1i(this.loc.uTexture, 0);
@@ -376,6 +382,7 @@ export class SolarScene {
   resetTime() {
     this.previousTime = null;
     this.simulationDays = 0;
+    this.rotationDays = 0;
   }
   // Ray and returned world-space point use the same centers and display radii as render().
   pickSurface(origin, direction, sceneMode = 'system', orbitScale = 'display') {
@@ -406,12 +413,13 @@ export class SolarScene {
     }
     return Number.isFinite(closest) ? origin.map((x, i) => x + d[i] * closest) : null;
   }
-  render({ time = 0, simulationSpeed = 2, tilt = 23.5, showOrbits = true,
+  render({ time = 0, simulationSpeed = 2, orbitSpeed = 1, rotationSpeed = 1, tilt = 23.5, showOrbits = true,
     projection = 'perspective', yaw = 0.8, pitch = 0.55, distance = 35, sceneMode = 'system', target = [0, 0, 0], orbitScale = 'display' }) {
     const gl = this.gl;
     const dt = this.previousTime === null ? 0 : Math.max(0, time - this.previousTime);
     this.previousTime = time;
-    this.simulationDays = advanceSimulationDays(this.simulationDays, dt, simulationSpeed);
+    [this.simulationDays, this.rotationDays] = advanceMotionDays(
+      this.simulationDays, this.rotationDays, dt, simulationSpeed, orbitSpeed, rotationSpeed);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
@@ -440,9 +448,9 @@ export class SolarScene {
     const visiblePlanets = sceneMode === 'focus' ? PLANETS.filter(p => p.name === 'earth') : PLANETS;
     if (showOrbits) for (const p of visiblePlanets) this.draw(this.planetOrbits[orbitScale][p.name], gl.LINE_LOOP, mat4(), [0.22, 0.32, 0.45], null, true);
     if (sceneMode !== 'focus') this.draw(this.asteroids[orbitScale], gl.POINTS, rotateY(cycleAngle(this.simulationDays, ASTEROID_ORBIT_DAYS)), [0.58, 0.55, 0.50], null, true, 2 * dpr);
-    const sun = mult(rotateY(cycleAngle(this.simulationDays, SUN_ROTATION_DAYS)), scalem(0.8, 0.8, 0.8));
+    const sun = mult(rotateY(cycleAngle(this.rotationDays, SUN_ROTATION_DAYS)), scalem(0.8, 0.8, 0.8));
     gl.uniform1i(this.loc.uSolar, true);
-    gl.uniform1f(this.loc.uSolarTime, this.simulationDays % 2000);
+    gl.uniform1f(this.loc.uSolarTime, this.rotationDays % 2000);
     this.draw(this.sphere, gl.TRIANGLES, sun, COLORS.sun, 'sun', true);
     gl.uniform1i(this.loc.uSolar, false);
     // Render the smooth corona behind the solar disk and without writing depth.
@@ -459,10 +467,10 @@ export class SolarScene {
       const anchor = translate(...planetPosition(p, this.simulationDays, orbitScale));
       const axis = p.name === 'earth' ? tilt : p.axialTilt;
       const radius = p.name === 'earth' && sceneMode === 'focus' ? 0.34 : p.radius;
-      const globe = mult(mult(mult(anchor, rotateZ(axis)), rotateY(cycleAngle(this.simulationDays, p.rotationDays))), scalem(radius, radius, radius));
+      const globe = mult(mult(mult(anchor, rotateZ(axis)), rotateY(cycleAngle(this.rotationDays, p.rotationDays))), scalem(radius, radius, radius));
       this.draw(this.sphere, gl.TRIANGLES, globe, p.color, p.name);
       if (p.name === 'earth' && this.textures.earth_clouds.ready) {
-        const clouds = mult(mult(mult(anchor, rotateZ(axis)), rotateY(cycleAngle(this.simulationDays, p.rotationDays) + (this.simulationDays % 800) * 0.45)), scalem(radius * 1.012, radius * 1.012, radius * 1.012));
+        const clouds = mult(mult(mult(anchor, rotateZ(axis)), rotateY(cycleAngle(this.rotationDays, p.rotationDays) + (this.rotationDays % 800) * 0.45)), scalem(radius * 1.012, radius * 1.012, radius * 1.012));
         gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
         this.draw(this.sphere, gl.TRIANGLES, clouds, [1, 1, 1], 'earth_clouds');
         gl.depthMask(true); gl.disable(gl.BLEND);
@@ -478,7 +486,7 @@ export class SolarScene {
         // Tilt the lunar orbital plane, translate along the ellipse, and spin with mean anomaly.
         const moonDistance = sceneMode === 'focus' ? 0.78 : 0.57;
         const moonRadius = sceneMode === 'focus' ? 0.105 : 0.075;
-        const moonFrame = moonFrameForAnchor(anchor, this.simulationDays, moonDistance);
+        const moonFrame = moonFrameForAnchor(anchor, this.simulationDays, moonDistance, this.rotationDays);
         if (showOrbits) this.draw(this.moonOrbit, gl.LINE_LOOP, mult(mult(anchor, rotateZ(MOON_INCLINATION_DEG)), scalem(moonDistance, 1, moonDistance)), [0.36, 0.42, 0.53], null, true);
         this.draw(this.sphere, gl.TRIANGLES, mult(moonFrame, scalem(moonRadius, moonRadius, moonRadius)), COLORS.moon, 'moon');
       }
